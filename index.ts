@@ -10,7 +10,7 @@ interface SocketData {
 
 const app = express();
 
-app.use(express.static('admin'));
+app.use(express.static('admin/public'));
 
 const httpServer = http.createServer(app);
 const io = new Server<any, any, any, SocketData>(httpServer, {
