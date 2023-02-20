@@ -1,6 +1,7 @@
 import express from 'express';
 import http from 'http';
 import { Server } from 'socket.io';
+import { instrument } from "@socket.io/admin-ui";
 
 interface SocketData {
   exchange: string;
@@ -8,19 +9,21 @@ interface SocketData {
 }
 
 const app = express();
+
+app.use(express.static('admin'));
+
 const httpServer = http.createServer(app);
-const io = new Server<any, any, any, SocketData>(httpServer);
+const io = new Server<any, any, any, SocketData>(httpServer, {
+  cors: {
+    origin: ["https://admin.socket.io"],
+    credentials: false
+  }
+});
 const port = 3000;
 
 interface IJoin {
   exchange: string;
   ticker: string; // Ticker = Room
-  path?: string;
-}
-
-interface IChange {
-  exchange?: string;
-  ticker: string;
   path?: string;
 }
 
@@ -51,6 +54,10 @@ app.get('/', function(req, res) {
   res.sendFile(__dirname + '/index.html');
 });
 
+app.get('/dashboard', function(req, res) {
+  res.sendFile(__dirname + '/admin/index.html');
+});
+
 io.on('connection', async (socket) => {
   /** Default Room */
   socket.leave(socket.id);
@@ -61,6 +68,7 @@ io.on('connection', async (socket) => {
   })
 
   socket.on('join', async (data: IJoin) => {
+    console.log(data);
     const exchange = data.exchange.toUpperCase();
     const ticker = data.ticker.toUpperCase();
     const roomName = `${exchange}-${ticker}`;
@@ -97,7 +105,7 @@ io.on('connection', async (socket) => {
 
   socket.on('forceDisconnect', () => {
     socket.disconnect();
-    console.log('user disconnected:', socket);
+    console.log('user disconnected:', socket.id);
   })
 
   socket.on('disconnecting', () => {
@@ -105,11 +113,22 @@ io.on('connection', async (socket) => {
   });
 
   socket.on('disconnect', () => {
-    console.log('user disconnected:', socket);
+    console.log('user disconnected:', socket.id);
   });
 
 });
 
+/** Admin */
+instrument(io, {
+  mode: "production",
+  auth: {
+    type: "basic",
+    username: "bullsea",
+    password: "$2a$12$1g6fTeKYd2VvbheAX3ZkrOsG9.GsSfrUSACR5APcdnEvirAapW2c6" // https://bcrypt-generator.com/ : bullsea123!@#
+  },
+});
+
+/** Server */
 httpServer.listen(port, () => {
   console.log(`Socket IO server listening on port ${port}`);
 });
